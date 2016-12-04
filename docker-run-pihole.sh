@@ -10,9 +10,6 @@ docker run -p 53:53/tcp -p 53:53/udp -p 80:80 \
   -e ServerIP="$IP" \
   -v $(pwd)/data/var/log/pihole.log:/var/log/pihole.log \
   -v $(pwd)/data/etc/pihole/:/etc/pihole/ \
-  -v $(pwd)/list/adlists.list:/etc/pihole/adlists.list \
-  -v $(pwd)/list/whitelist.txt:/etc/pihole/whitelist.txt \
-  -v $(pwd)/list/blacklist.txt:/etc/pihole/blacklist.txt \
   --restart=always \
   --name pihole \
   -d "$IMAGE"
