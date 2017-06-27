@@ -1,55 +1,21 @@
 #!/bin/bash
+IP_LOOKUP="$(ip route get 8.8.8.8 | awk '{ print $NF; exit }')"  # May not work for VPN / tun0
+IPv6_LOOKUP="$(ip -6 route get 2001:4860:4860::8888 | awk '{ print $10; exit }')"  # May not work for VPN / tun0
+IP="${IP:-$IP_LOOKUP}"  # use $IP, if set, otherwise IP_LOOKUP
+IPv6="${IPv6:-$IPv6_LOOKUP}"  # use $IPv6, if set, otherwise IP_LOOKUP
+DOCKER_CONFIGS="$(echo $HOME/docker-data/pihole)"  # Default of directory you run this from, update to where ever.
 
-IMAGE=${1:-'diginc/pi-hole:arm'}
-NIC=${2:-'eth0'}
-IP=$(ip addr show "$NIC" | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
-
-dir=$HOME/docker-data
-if [ ! -e $dir ]; then
-    echo "Creating $dir"
-    mkdir $dir
-else
-    echo "$dir already exist"
-fi
-
-dir=$HOME/docker-data/pihole
-if [ ! -e $dir ]; then
-    echo "Creating $dir"
-    mkdir $dir
-else
-    echo "$dir already exist"
-fi
-
-dir=$HOME/docker-data/pihole/var
-if [ ! -e $dir ]; then
-    echo "Creating $dir"
-    mkdir $dir
-else
-    echo "$dir already exist"
-fi
-
-dir=$HOME/docker-data/pihole/var/log
-if [ ! -e $dir ]; then
-    echo "Creating $dir"
-    mkdir $dir
-else
-    echo "$dir already exist"
-fi
-
-if [ ! -f $dir/pihole.log ]; then
-    echo "Creating $dir/pihole.log"
-    touch $dir/pihole.log
-else
-    echo "$dir/pihole.log already exist"
-fi
+echo "IP: ${IP} - IPv6: ${IPv6}"
 
 # Default ports + daemonized docker container
-echo "Executing: docker run -p 53:53/tcp -p 53:53/udp -p 80:80 --cap-add=NET_ADMIN -e ServerIP=\"$IP\" -v $HOME/docker-data/pihole/var/log/pihole.log:/var/log/pihole.log -v $HOME/docker-data/pihole/etc/pihole/:/etc/pihole/ --restart=always --name pihole -d \"$IMAGE\""
-docker run -p 53:53/tcp -p 53:53/udp -p 80:80 \
-  --cap-add=NET_ADMIN \
-  -e ServerIP="$IP" \
-  -v $HOME/docker-data/pihole/var/log/pihole.log:/var/log/pihole.log \
-  -v $HOME/docker-data/pihole/etc/pihole/:/etc/pihole/ \
-  --restart=always \
-  --name pihole \
-  -d "$IMAGE"
+docker run -d \
+    --name pihole \
+    -p 53:53/tcp -p 53:53/udp -p 80:80 \
+    -v "${DOCKER_CONFIGS}/pihole/:/etc/pihole/" \
+    -v "${DOCKER_CONFIGS}/dnsmasq.d/:/etc/dnsmasq.d/" \
+    -e ServerIP="${IP:-$(ip route get 8.8.8.8 | awk '{ print $NF; exit }')}" \
+    -e ServerIPv6="${IPv6:-$(ip -6 route get 2001:4860:4860::8888 | awk '{ print $10; exit }')}" \
+    --restart=always \
+    diginc/pi-hole:arm
+
+docker logs pihole 2> /dev/null | grep 'password:'
